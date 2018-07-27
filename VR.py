@@ -141,10 +141,10 @@ def treatRoll(dice):
 		dice = dice[0][0]
 		rolledDice = roll(str(dice))
 	# Has options along with the dice roll
-	elif re.match(r'(\d+d\d+\s?\+?\s?\d?)([kl]+[0-9]+$)', dice):
+	elif re.match(r'(\d+d\d+\s?\+?\s?\d?)([kl><]+[0-9]+)\s?([a-zA-Z]*$)', dice):
 		hasOptions = True
-		dice = re.findall(r'(\d+d\d+\s?\+?\s?\d?)([kl]+[0-9]+$)', dice)
-		damage = str()
+		dice = re.findall(r'(\d+d\d+\s?\+?\s?\d?)([kl><]+[0-9]+)\s?([a-zA-Z]*$)', dice)
+		damage = dice[0][2]
 		options = dice[0][1]
 		dice = dice[0][0]
 		rolledDice = roll(str(dice))
@@ -198,6 +198,35 @@ def treatRoll(dice):
 						output += '<i>' + str(num) + '</i>'
 					output += ' + '
 				rolls = str(output[:-3])
+			elif options[0] in ["<", ">"]:
+				compare = int(options[1:])
+				options = options[0]
+				textOption = "higher" if options == ">" else "lower"
+				successes = int()
+				output = str()
+				total = int()
+				dice = str(rolledDice['diceAmount']) + "d" +  str(rolledDice['faces']) + " counting successes " + textOption + " than " + str(compare)
+				if options == "<":
+					for num in [int(x) for x in rolledDice['dice'].split('+')]:
+						if num < compare:
+							total += num
+							successes += 1
+							output += '<b>' + str(num) + '</b>'
+						else:
+							output += '<i>' + str(num) + '</i>'
+					rolls = str(output[:-1])
+					damage += "</i>\n<b>" + str(successes) + " successes.</b><i>"
+				else:
+					for num in [int(x) for x in rolledDice['dice'].split('+')]:
+						if num > compare:
+							total += num
+							successes += 1
+							output += '<b>' + str(num) + '</b>'
+						else:
+							output += '<i>' + str(num) + '</i>'
+						output += ' + '
+					rolls = str(output[:-1])
+					damage += "</i>\n<b>" + str(successes) + " successes.</b><i>"
 			total = str(total)
 		else:
 			rolls = rolledDice['dice'].replace(str(rolledDice['faces']), "<b>" + str(rolledDice['faces']) + "</b>" )
@@ -218,11 +247,19 @@ def handleQuery(query):
 	if "k" in query.split(' ')[0]:
 		number = query.split(' ')[0].split('k')[0]
 		keep = query.split(' ')[0].split('k')[1]
-		message = number + " keep the " + keep + " highest."
+		message = number + " keep the highes " + keep + "."
 	elif 'l' in query.split(' ')[0]:
 		number = query.split(' ')[0].split('l')[0]
 		drop = query.split(' ')[0].split('l')[1]
-		message = number + " drop the " + drop + " lowest."
+		message = number + " drop the lowest " + drop + "."
+	elif '>' in query.split(' ')[0]:
+		number = query.split(' ')[0].split('>')[0]
+		drop = query.split(' ')[0].split('>')[1]
+		message = number + " count successes higher than " + drop
+	elif '<' in query.split(' ')[0]:
+		number = query.split(' ')[0].split('<')[0]
+		drop = query.split(' ')[0].split('<')[1]
+		message = number + " count successes lower than " + drop
 	else:
 		message = query
 	return message
@@ -234,7 +271,8 @@ def inlineRoll(bot, update):
 <b>Roll with modifier:</b> <code>[number]</code>d<code>[faces]</code>+<code>[modifier]</code>\n   <i>10d6 + -2</i> (can be positive or negative)\n \
 <b>Roll with flavor text:</b> <code>[number]</code>d<code>[faces]</code> <code>[text]</code>\n   <i>1d10 fire damage</i> (can contain modifiers)\n \
 <b>Roll and keep the highest:</b> <code>[number]</code>d<code>[faces]</code>k<code>[numberToKeep]</code>\n   <i>4d6k3</i>\n \
-<b>Roll and lose the lowest:</b> <code>[number]</code>d<code>[faces]</code>l<code>[numberToDrop]</code>\n   <i>10d8d4</i>\n \
+<b>Roll and lose the lowest:</b> <code>[number]</code>d<code>[faces]</code>l<code>[numberToDrop]</code>\n   <i>10d8l4</i>\n \
+<b>Roll and count successes:</b> <code>[number]</code>d<code>[faces]</code> ＞ or ＜ <code>[numberToCompare]</code>\n   <i>14d6>4</i>\n \
 <b>Compound Roll:</b> <code>[number]</code>d<code>[faces]</code>d<code>[faces]</code>\n    <i>4d4d6d8</i>"
 
 	if query:
@@ -302,6 +340,12 @@ def inlineRoll(bot, update):
 				input_message_content=InputTextMessageContent(treatRoll('1d4'), parse_mode = "HTML")),
 			InlineQueryResultArticle(
 				id=uuid4(), 
+				title="Roll Ability Scores",
+				description="Roll 6 times 4d6 dropping the lowest.",
+				thumb_url="https://i.imgur.com/RdFU7TX.png",
+				input_message_content=InputTextMessageContent("<b>Rolling Ability Scores:</b>\n"+ treatRoll('4d6l1') + "\n" + treatRoll('4d6l1') + "\n" + treatRoll('4d6l1') + "\n" + treatRoll('4d6l1') + "\n" + treatRoll('4d6l1') + "\n" + treatRoll('4d6l1'), parse_mode = "HTML")),
+			InlineQueryResultArticle(
+				id=uuid4(), 
 				title="Help",
 				thumb_url="https://i.imgur.com/ZjaMjNx.png",
 				input_message_content=InputTextMessageContent(helpMessage, parse_mode = "HTML"))
@@ -311,12 +355,10 @@ def inlineRoll(bot, update):
 
 def beep_bot(bot, update):
 	CID = update.message.chat.id
-    if update.message.text.lower() == "beep":
-        bot.send_message(CID, "`Boop`", parse_mode="Markdown")
-    else:
-    	bot.send_message(CID, "`I only work through inline mode, write @VorpalRobot followed by a space to try it out.`", parse_mode="Markdown")
-
-
+	if update.message.text.lower() == "beep":
+		bot.send_message(CID, "`Boop`", parse_mode="Markdown")
+	else:
+		bot.send_message(CID, "`I only work through inline mode, write @VorpalRobot followed by a space to try it out.`", parse_mode="Markdown")
 
 updater = Updater(token='TOKEN')
 dispatcher = updater.dispatcher
