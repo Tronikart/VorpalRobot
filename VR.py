@@ -310,10 +310,11 @@ def inlineRoll(bot, update):
 	update.inline_query.answer(options, cache_time=0)
 
 def beep_bot(bot, update):
+	CID = update.message.chat.id
     if update.message.text.lower() == "beep":
-        bot.send_message(adminid, "`Boop`", parse_mode="Markdown")
+        bot.send_message(CID, "`Boop`", parse_mode="Markdown")
     else:
-    	bot.send_message(adminid, "`I only work through inline mode, write @VorpalRobot followed by a space to try it out.`", parse_mode="Markdown")
+    	bot.send_message(CID, "`I only work through inline mode, write @VorpalRobot followed by a space to try it out.`", parse_mode="Markdown")
 
 
 
